@@ -16,8 +16,13 @@ class HybridAirWritingModel:
 
         # Time-series model
         self.ts_model = MLPClassifier(
-            hidden_layer_sizes=(128, 64),
-            max_iter=300,
+            # hidden_layer_sizes=(128, 64),
+            hidden_layer_sizes=(256, 128, 64, 32),
+            activation='relu',
+            solver='adam',
+            alpha=1e-4,
+            learning_rate_init=1e-4,
+            max_iter=400,
             verbose=False
         )
 
@@ -47,7 +52,13 @@ class HybridAirWritingModel:
     def preprocess_stroke(self, stroke):
         stroke = self.remove_gravity(stroke)
         stroke = self.normalize(stroke)
-        stroke = self.resample_stroke(stroke)
+
+        # mag = np.linalg.norm(stroke, axis=1, keepdims=True) # adding the magnitude of x y z
+        velocity = np.cumsum(stroke, axis=0)    # add velocity
+        # stroke = np.hstack([stroke, mag, velocity])
+        # stroke = np.hstack([stroke, mag])
+
+        stroke = self.resample_stroke(stroke)   # resample very last
         return stroke
 
     # -------------------------------
@@ -159,22 +170,46 @@ class HybridAirWritingModel:
     # -------------------------------
     # Evaluation
     # -------------------------------
-
     def evaluate(self):
-        correct = 0
+        correct_hybrid = 0
+        correct_ts = 0
+        correct_rf = 0
 
         for i in range(len(self.y_test)):
-            ts_probs = self.ts_model.predict_proba(self.Xts_test[i].reshape(1, -1))[0]
-            rf_probs = self.rf_model.predict_proba(self.Xrf_test[i].reshape(1, -1))[0]
+            # Get test sample
+            X_ts_sample = self.Xts_test[i].reshape(1, -1)
+            X_rf_sample = self.Xrf_test[i].reshape(1, -1)
+            y_true = self.y_test[i]
 
+            # Predict probabilities
+            ts_probs = self.ts_model.predict_proba(X_ts_sample)[0]
+            rf_probs = self.rf_model.predict_proba(X_rf_sample)[0]
+
+            # Hybrid (average probs)
             combined = (ts_probs + rf_probs) / 2
-            pred = np.argmax(combined)
+            pred_hybrid = np.argmax(combined)
 
-            if pred == self.y_test[i]:
-                correct += 1
+            # Individual model predictions
+            pred_ts = np.argmax(ts_probs)
+            pred_rf = np.argmax(rf_probs)
 
-        acc = correct / len(self.y_test)
-        print(f"\nHybrid Model Accuracy: {acc * 100:.2f}%")
+            # Count correct
+            if pred_hybrid == y_true:
+                correct_hybrid += 1
+            if pred_ts == y_true:
+                correct_ts += 1
+            if pred_rf == y_true:
+                correct_rf += 1
+
+        # Compute accuracies
+        total = len(self.y_test)
+        acc_hybrid = correct_hybrid / total
+        acc_ts = correct_ts / total
+        acc_rf = correct_rf / total
+
+        print(f"\nHybrid Model Accuracy: {acc_hybrid * 100:.2f}%")
+        print(f"Time-Series Model Accuracy: {acc_ts * 100:.2f}%")
+        print(f"Random Forest Model Accuracy: {acc_rf * 100:.2f}%")
 
 
 if __name__ == "__main__":
