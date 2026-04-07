@@ -7,42 +7,41 @@ from scipy.signal import resample
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import classification_report
+from sklearn.ensemble import RandomForestClassifier
 
 
-class AirWritingModel:
+class HybridAirWritingModel:
     def __init__(self, target_length=100):
         self.target_length = target_length
-        self.model = MLPClassifier(
+
+        # Time-series model
+        self.ts_model = MLPClassifier(
             hidden_layer_sizes=(128, 64),
             max_iter=300,
-            verbose=True
+            verbose=False
         )
+
+        # Feature-based model
+        self.rf_model = RandomForestClassifier(
+            n_estimators=100,
+            random_state=42
+        )
+
         self.label_encoder = LabelEncoder()
 
     # -------------------------------
-    # Preprocessing functions
+    # Preprocessing (time-series)
     # -------------------------------
 
     def remove_gravity(self, stroke):
-        """
-        Subtract mean from each axis (gravity removal approximation)
-        stroke: (T, 3)
-        """
         return stroke - np.mean(stroke, axis=0)
 
     def normalize(self, stroke):
-        """
-        Normalize to zero mean and unit variance
-        """
         std = np.std(stroke, axis=0)
-        std[std == 0] = 1  # avoid divide by zero
+        std[std == 0] = 1
         return (stroke - np.mean(stroke, axis=0)) / std
 
     def resample_stroke(self, stroke):
-        """
-        Resample to fixed length
-        """
         return resample(stroke, self.target_length)
 
     def preprocess_stroke(self, stroke):
@@ -52,89 +51,139 @@ class AirWritingModel:
         return stroke
 
     # -------------------------------
+    # Feature extraction (RF)
+    # -------------------------------
+
+    def extract_features(self, df):
+        duration = df['timestamp'].iloc[-1] - df['timestamp'].iloc[0]
+        num_strokes = df['stroke_id'].nunique()
+
+        features = {
+            'duration_sec': duration,
+            'num_strokes': num_strokes,
+        }
+
+        for axis in ['x', 'y', 'z']:
+            features[f'{axis}_mean'] = df[axis].mean()
+            features[f'{axis}_std'] = df[axis].std()
+            features[f'{axis}_min'] = df[axis].min()
+            features[f'{axis}_max'] = df[axis].max()
+            features[f'{axis}_range'] = df[axis].max() - df[axis].min()
+
+        return np.array(list(features.values()), dtype=np.float32)
+
+    # -------------------------------
     # Data loading
     # -------------------------------
 
     def load_dataset(self, root_dir):
-        X = []
+        X_ts = []
+        X_rf = []
         y = []
 
         for label_folder in sorted(os.listdir(root_dir)):
             folder_path = os.path.join(root_dir, label_folder)
-
             if not os.path.isdir(folder_path):
                 continue
 
-            csv_files = glob.glob(os.path.join(folder_path, "*.csv"))
-
-            for csv_file in csv_files:
+            for csv_file in glob.glob(os.path.join(folder_path, "*.csv")):
                 df = pd.read_csv(csv_file)
 
-                # Group by stroke_id
-                for stroke_id, group in df.groupby("stroke_id"):
-                    stroke = group[["x", "y", "z"]].values.astype(np.float32)
+                if len(df) < 5:
+                    continue
 
-                    if len(stroke) < 5:
-                        continue  # skip tiny strokes
+                # ---- Time-series ----
+                stroke = df[['x', 'y', 'z']].values.astype(np.float32)
+                stroke = self.preprocess_stroke(stroke)
+                X_ts.append(stroke.flatten())
 
-                    stroke = self.preprocess_stroke(stroke)
+                # ---- Feature-based ----
+                feats = self.extract_features(df)
+                X_rf.append(feats)
 
-                    # Flatten for MLP
-                    stroke_flat = stroke.flatten()
+                y.append(label_folder)
 
-                    X.append(stroke_flat)
-                    y.append(label_folder)
-
-        X = np.array(X)
+        X_ts = np.array(X_ts)
+        X_rf = np.array(X_rf)
         y = np.array(y)
 
-        print(f"Loaded dataset: {X.shape}, labels: {len(set(y))}")
+        print(f"Loaded {len(y)} samples")
 
-        return X, y
+        return X_ts, X_rf, y
 
     # -------------------------------
     # Training
     # -------------------------------
 
-    def train(self, X, y):
-        y_encoded = self.label_encoder.fit_transform(y)
+    def train(self, X_ts, X_rf, y):
+        y_enc = self.label_encoder.fit_transform(y)
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y_encoded, test_size=0.2, random_state=42
+        Xts_train, Xts_test, Xrf_train, Xrf_test, y_train, y_test = train_test_split(
+            X_ts, X_rf, y_enc, test_size=0.2, random_state=42, stratify=y_enc
         )
 
-        print("Training model...")
-        self.model.fit(X_train, y_train)
+        print("Training time-series model...")
+        self.ts_model.fit(Xts_train, y_train)
 
-        print("Evaluating...")
-        y_pred = self.model.predict(X_test)
+        print("Training random forest...")
+        self.rf_model.fit(Xrf_train, y_train)
 
-        print(classification_report(y_test, y_pred, target_names=self.label_encoder.classes_))
+        self.Xts_test = Xts_test
+        self.Xrf_test = Xrf_test
+        self.y_test = y_test
 
     # -------------------------------
-    # Inference
+    # Voting prediction
     # -------------------------------
 
-    def predict(self, stroke):
-        """
-        stroke: (T, 3)
-        """
+    def predict(self, stroke_df):
+        # ---- Time-series ----
+        stroke = stroke_df[['x', 'y', 'z']].values.astype(np.float32)
         stroke = self.preprocess_stroke(stroke)
-        stroke = stroke.flatten().reshape(1, -1)
+        ts_input = stroke.flatten().reshape(1, -1)
 
-        pred = self.model.predict(stroke)[0]
-        return self.label_encoder.inverse_transform([pred])[0]
+        # ---- RF features ----
+        rf_input = self.extract_features(stroke_df).reshape(1, -1)
 
+        # ---- Probabilities ----
+        ts_probs = self.ts_model.predict_proba(ts_input)[0]
+        rf_probs = self.rf_model.predict_proba(rf_input)[0]
 
-# -------------------------------
-# Main entry point
-# -------------------------------
+        # ---- Combine (average) ----
+        combined_probs = (ts_probs + rf_probs) / 2
+
+        pred_idx = np.argmax(combined_probs)
+
+        return self.label_encoder.inverse_transform([pred_idx])[0]
+
+    # -------------------------------
+    # Evaluation
+    # -------------------------------
+
+    def evaluate(self):
+        correct = 0
+
+        for i in range(len(self.y_test)):
+            ts_probs = self.ts_model.predict_proba(self.Xts_test[i].reshape(1, -1))[0]
+            rf_probs = self.rf_model.predict_proba(self.Xrf_test[i].reshape(1, -1))[0]
+
+            combined = (ts_probs + rf_probs) / 2
+            pred = np.argmax(combined)
+
+            if pred == self.y_test[i]:
+                correct += 1
+
+        acc = correct / len(self.y_test)
+        print(f"\nHybrid Model Accuracy: {acc * 100:.2f}%")
+
 
 if __name__ == "__main__":
     data_path = "../wii_dataset_local"
 
-    model = AirWritingModel(target_length=100)
+    model = HybridAirWritingModel()
 
-    X, y = model.load_dataset(data_path)
+    X_ts, X_rf, y = model.load_dataset(data_path)
 
-    model.train(X, y)
+    model.train(X_ts, X_rf, y)
+
+    model.evaluate()
