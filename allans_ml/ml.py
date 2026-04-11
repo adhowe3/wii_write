@@ -2,6 +2,7 @@ import os
 import glob
 import numpy as np
 import pandas as pd
+import joblib
 
 from scipy.signal import resample
 from sklearn.model_selection import train_test_split
@@ -212,8 +213,34 @@ class HybridAirWritingModel:
         print(f"Random Forest Model Accuracy: {acc_rf * 100:.2f}%")
 
 
+    def save_model(self, filename="hybrid_wii_model.pkl"):
+        """Packages the trained models and encoder into a single file."""
+        joblib.dump({
+            'ts_model': self.ts_model,
+            'rf_model': self.rf_model,
+            'label_encoder': self.label_encoder,
+            'target_length': self.target_length
+        }, filename)
+        print(f"\n[SUCCESS] Hybrid model saved to {filename}")
+
+    @classmethod
+    def load_model(cls, filename="hybrid_wii_model.pkl"):
+        """Loads a pre-trained model from a file."""
+        data = joblib.load(filename)
+        
+        # Create a blank instance of the class
+        instance = cls(target_length=data['target_length'])
+        
+        # Inject the trained weights and encoder
+        instance.ts_model = data['ts_model']
+        instance.rf_model = data['rf_model']
+        instance.label_encoder = data['label_encoder']
+        
+        return instance
+
+
 if __name__ == "__main__":
-    data_path = "../wii_dataset_local"
+    data_path = "./wii_dataset_local"
 
     model = HybridAirWritingModel()
 
@@ -222,3 +249,5 @@ if __name__ == "__main__":
     model.train(X_ts, X_rf, y)
 
     model.evaluate()
+
+    model.save_model("hybrid_wii_model.pkl")
