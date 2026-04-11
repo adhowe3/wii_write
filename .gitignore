@@ -3,3 +3,9 @@
 /esp_to_pi/.vscode
 esp_to_pi/.pio
 wii_local_graphs/
+
+report/latex/*.log
+report/latex/*.fls
+report/latex/*.aux
+report/latex/*.fdb*
+report/latex/*.gz
