@@ -1,6 +1,7 @@
 \documentclass[letterpaper,twocolumn,10pt]{article}
 \usepackage{epsfig,xspace,url}
 \usepackage{authblk}
+\bibliographystyle{ieeetr}
 
 
 \title{Course Project\\
@@ -12,27 +13,36 @@ Wii Write}
 \maketitle
 
 \subsection*{Introduction}
-
 % Motivate and introduce the problem you are solving. Very briefly summarize your methodology, your experiments, and your important results.
+The Nintendo Wii remote has been used in research as a cheap and common alternative to other accelerometers and inertial sensing, as discussed in~\cite{leeHacking}. The issue we are addressing is communication from one user to another via the Wii remote. This communication system could be used by people without fine motor skills for typing, or even the ability to talk.
+
+We implement a Bluetooth connection between a Raspberry-Pi to a Wiimote. We design an ML model to detect letters drawn in the air which achieved 93\% accuracy on user dependent data. We experiment on the accuracy of the model and the Bluetooth packet loss at several distances. We find that the model is accurate enough to detect letters correctly and the Wiimote TODO: what results from the Bluetooth packet loss?.
 
 \subsection*{Related Work}
-
 % Summarize the existing work related to your problem.
+In previous work, the Wiimote has been reverse engineered and used in virtual reality~\cite{leeHacking} , physical activity tracking~\cite{Khan2013WiiActivity}, and even used to evaluate Parkinson's patients~\cite{SynnottWiiPD}. These works focused on using the Wiimote as an cheap alternative to other motion tracking devices.
+
+There has been quite a bit of research in the area of air-writing. In~\cite{ChenAirWriting} they achieved a word error rate of 0.8\% with air-writing. The work in~\cite{YanayAirwriting} achieved 89.2\% accuracy on a letter prediction model.
+
 
 \subsection*{Methodology}
-
 % Describe your solution and any other methods you have used to solve your problem.
+We used a Raspberry Pi Zero2W to connect to the Wiimote over Bluetooth. The Rasberry Pi receives raw accelerometer and button data from the Wiimote, and from this data predicts the drawn letter. To draw the letters, we hold the "A" button on the Wiimote and draw a stroke of the letter. Some letters like "H" have three strokes, while a letter like "S" only has one stroke. All leters we draw are upper-case. 
+
+We tried several model architectures, and decided on a hybrid model that takes votes from two individual models. The first model extracts features from the data such as number of strokes and length of data, as well as mean, standard deviation, minimum, maximum, from X, Y and Z data. From these features, we use a random forest (RF) classifier to predict the letter. The second model is a multi-layer perceptron (MLP) that takes in the raw X, Y, Z data and makes a prediction based on that. Since the MLP model input needs to have a standard size, we up-sample or down-sample to 100 time samples for each letter input.
 
 \subsection*{Implementation/Experimentation}
-
 % Describe your experiments and your results. Discuss your results.
 
-\subsection*{Conclusion}
 
+\subsection*{Conclusion}
 % Summarize your work and your results. Indicated any future directions.
 
-\subsection*{References}
 
 % List all the references you have used for this work.
+\subsection*{References}
+\renewcommand{\refname}{\vspace{-1.5em}}    % had to add this so bib does not add extra space or section header
+\bibliography{references}
+
 
 \end{document}
