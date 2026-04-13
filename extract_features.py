@@ -34,11 +34,11 @@ for label in os.listdir(DATASET_PATH):
                 continue
                 
             # --- FEATURE CALCULATION ---
-            # 1. Temporal & Stroke Features
+            # Temporal & Stroke Features
             duration = df['timestamp'].iloc[-1] - df['timestamp'].iloc[0]
             num_strokes = df['stroke_id'].nunique()
             
-            # 2. Statistical Features (per axis)
+            # Statistical Features (per axis)
             features = {
                 'label': label,           # The target we want to predict (e.g., 'A')
                 'filename': csv_file,     # Kept for debugging/tracking

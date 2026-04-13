@@ -2,7 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 
-# Your data
+# Our data collected from live model inference
+# expected model inference label mapped with the
+# predictions the model gave
 data = {
     "A": ["a","a","a","c","i","c","c","c","c","a"],
     "B": ["b","b","b","b","b","b","b","b","b","b"],
@@ -40,15 +42,14 @@ total_correct = 0
 for true_label, preds in data.items():
     for p in preds:
         y_true.append(true_label.upper())
-        y_pred.append(p.upper())  # normalize prediction
+        y_pred.append(p.upper())  # make them all capital now
         if (p.upper() == true_label):
             total_correct += 1
 
 tot_accuracy = (total_correct) / (26*10)
 print(f"total correct: {total_correct}, overall accuracy: {tot_accuracy}")
 
-
-# Define label order (A-Z plus '1' since B maps to '1')
+# Define label order
 labels = sorted(list(set(y_true + y_pred)))
 
 # Compute confusion matrix

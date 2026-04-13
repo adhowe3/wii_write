@@ -22,14 +22,20 @@ We implement a Bluetooth connection between a Raspberry-Pi to a Wiimote. We desi
 % Summarize the existing work related to your problem.
 In previous work, the Wiimote has been reverse engineered and used in virtual reality~\cite{leeHacking} , physical activity tracking~\cite{Khan2013WiiActivity}, and even used to evaluate Parkinson's patients~\cite{SynnottWiiPD}. These works focused on using the Wiimote as an cheap alternative to other motion tracking devices.
 
-There has been quite a bit of research in the area of air-writing. In~\cite{ChenAirWriting} they achieved a word error rate of 0.8\% with air-writing. The work in~\cite{YanayAirwriting} achieved 89.2\% accuracy on a letter prediction model.
+There has been quite a bit of research in the area of air-writing. In~\cite{ChenAirWriting} they achieved a word error rate of 0.8\% with air-writing. The work in~\cite{YanayAirwriting} achieved 89.2\% accuracy on a letter prediction model that was user dependent, meaning the model was trained and tested on data from the same user.
 
 
 \subsection*{Methodology}
 % Describe your solution and any other methods you have used to solve your problem.
+TODO: Josh explain about how the Wiimote connection works? what tool are we using?
+
 We used a Raspberry Pi Zero2W to connect to the Wiimote over Bluetooth. The Rasberry Pi receives raw accelerometer and button data from the Wiimote, and from this data predicts the drawn letter. To draw the letters, we hold the "A" button on the Wiimote and draw a stroke of the letter. Some letters like "H" have three strokes, while a letter like "S" only has one stroke. All leters we draw are upper-case. Accelerometer data is only sent while the "A" button is being held. Once the user is done writing a letter, the D-pad is pressed to indicate the end of letter.
 
-We tried several model architectures, and decided on a hybrid model that takes votes from two individual models. The first model extracts features from the data such as number of strokes and length of data, as well as mean, standard deviation, minimum, maximum, from X, Y and Z data. From these features, we use a random forest (RF) classifier to predict the letter. The second model is a multi-layer perceptron (MLP) that takes in the raw X, Y, Z data and makes a prediction based on that. Since the MLP model input needs to have a standard size, we up-sample or down-sample to 100 samples for each letter input. 
+We collected 25 samples of air-writing for every letter. For training, we used 80\% of this data, and the other 20\% was used for testing.
+
+We tried several model architectures, and decided on a hybrid model that takes votes from two individual models. The first model extracts features from the data such as number of strokes and length of data, as well as mean, standard deviation, minimum, maximum, from X, Y and Z data. From these features, we use a random forest (RF) classifier to predict the letter. The second model is a multi-layer perceptron (MLP) that takes in the raw X, Y, Z data and makes a prediction based on that. Since the MLP model input needs to have a standard size, we up-sample or down-sample to 100 samples for each axis input. Individually, these models were each about 90\% accurate, but when combine they reached 93-96\% on the test data.
+
+
 
 \subsection*{Implementation/Experimentation}
 % Describe your experiments and your results. Discuss your results.
