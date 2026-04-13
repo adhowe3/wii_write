@@ -74,9 +74,10 @@ for i in range(cm.shape[0]):
         ax.text(j, i, cm[i, j],
                 ha="center", va="center")
 
-ax.set_xlabel("Predicted")
-ax.set_ylabel("True")
-ax.set_title("Confusion Matrix")
+ax.set_xlabel("Predicted", fontsize=16)
+ax.set_ylabel("True", fontsize=16)
+ax.set_title("Confusion Matrix", fontsize=18)
+ax.tick_params(axis='both', labelsize=12)
 
 plt.tight_layout()
 plt.savefig("confusion_matrix.png")
