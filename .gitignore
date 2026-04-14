@@ -9,3 +9,5 @@ report/latex/*.fls
 report/latex/*.aux
 report/latex/*.fdb*
 report/latex/*.gz
+report/latex/*.bbl
+report/latex/*.blg
