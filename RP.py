@@ -8,7 +8,7 @@ import warnings
 # Suppress scikit-learn warnings about feature names
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# 1. Load the Machine Learning Model
+# Load the Machine Learning Model
 MODEL_FILE = "wii_rf_model.pkl"
 try:
     print(f"Loading AI model from {MODEL_FILE}...")
@@ -18,8 +18,8 @@ except Exception as e:
     print(f"Error loading model: {e}")
     quit()
 
-# 2. Connect to the Wii Remote
-print("Searching for Wii Remote devices...")
+# Connect to the Wiimote
+print("Searching for Wiimote devices...")
 time.sleep(1)
 accel_device, button_device = None, None
 

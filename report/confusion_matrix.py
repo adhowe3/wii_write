@@ -2,7 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 
-# Your data
+# Our data collected from live model inference
+# expected model inference label mapped with the
+# predictions the model gave
 data = {
     "A": ["a","a","a","c","i","c","c","c","c","a"],
     "B": ["b","b","b","b","b","b","b","b","b","b"],
@@ -40,15 +42,14 @@ total_correct = 0
 for true_label, preds in data.items():
     for p in preds:
         y_true.append(true_label.upper())
-        y_pred.append(p.upper())  # normalize prediction
+        y_pred.append(p.upper())  # make them all capital now
         if (p.upper() == true_label):
             total_correct += 1
 
 tot_accuracy = (total_correct) / (26*10)
 print(f"total correct: {total_correct}, overall accuracy: {tot_accuracy}")
 
-
-# Define label order (A-Z plus '1' since B maps to '1')
+# Define label order
 labels = sorted(list(set(y_true + y_pred)))
 
 # Compute confusion matrix
@@ -73,9 +74,10 @@ for i in range(cm.shape[0]):
         ax.text(j, i, cm[i, j],
                 ha="center", va="center")
 
-ax.set_xlabel("Predicted")
-ax.set_ylabel("True")
-ax.set_title("Confusion Matrix")
+ax.set_xlabel("Predicted", fontsize=16)
+ax.set_ylabel("True", fontsize=16)
+ax.set_title("Confusion Matrix", fontsize=18)
+ax.tick_params(axis='both', labelsize=12)
 
 plt.tight_layout()
 plt.savefig("confusion_matrix.png")

@@ -3,24 +3,21 @@ import select
 import time
 import pandas as pd
 import warnings
-# 1. NEW IMPORT: Import the class from Allan's file
+# Import the class from Allan's file
 from ml import HybridAirWritingModel 
 
 # Suppress scikit-learn warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# 2. LOAD THE HYBRID MODEL
+# LOAD THE HYBRID MODEL
 MODEL_FILE = "hybrid_wii_model.pkl"
 try:
     print(f"Loading Hybrid AI model from {MODEL_FILE}...")
     # Use the custom load method Allan wrote
     model = HybridAirWritingModel.load_model(MODEL_FILE)
-    print("[SUCCESS] Hybrid Brain loaded!\n")
 except Exception as e:
     print(f"Error loading model: {e}")
     quit()
-
-# ... [KEEP YOUR DEVICE CONNECTION CODE THE SAME] ...
 
 try:
     while True:
