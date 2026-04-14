@@ -1,6 +1,9 @@
 \documentclass[letterpaper,twocolumn,10pt]{article}
 \usepackage{epsfig,xspace,url}
 \usepackage{authblk, cleveref}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{stfloats}
 \bibliographystyle{ieeetr}
 
 
@@ -27,9 +30,35 @@ There has been quite a bit of research in the area of air-writing. In~\cite{Chen
 
 \subsection*{Methodology}
 % Describe your solution and any other methods you have used to solve your problem.
-TODO: Josh, explain about how the Wiimote connection works? what tool are we using?
+The Wii remote is connected to the Raspberry Pi over Bluetooth through BlueZ, a native Linux Bluetooth stack. This connection manages the legacy Bluetooth signal from the Wii remote and opens a Logical Link Control and Adaptation Protocol (L2CAP) transport pipe. Our python script for reading the accelerometer data from the Wii remote could interface directly to this stream using a raw Bluetooth socket, but that would bog down the Raspberry Pi's CPU since it would be getting 100 accelerometer readings per second and we would have to manually decode the hexadecimal payloads from the Wii remote. To optimize the stream of data to allow enough resources for the machine learning model to run on the Raspberry Pi, we abstract the handling of the Bluetooth packets to the Linux kernel with the hid-wiimote kernel driver. This translates the Nintendo-specific hexadecimal payloads into standard Linux inputs. Once the payloads are in a format that Linux understands, the evdev (event device) subsystem filters the stream of Bluetooth data and only registers unique events that out python script uses to collect that data for processing. 
 
 We used a Raspberry Pi Zero2W to connect to the Wiimote over Bluetooth. The Rasberry Pi receives raw accelerometer and button data from the Wiimote, and from this data predicts the drawn letter. To draw the letters, we hold the "A" button on the Wiimote and draw a stroke of the letter. Some letters like "H" have three strokes, while a letter like "S" only has one stroke. All leters we draw are upper-case. Accelerometer data is only sent while the "A" button is being held. Once the user is done writing a letter, the D-pad is pressed to indicate the end of letter.
+
+\begin{table*}[b] % The asterisk makes it span both columns. [t] puts it at the top of a page.
+    \centering
+    \caption{System Performance Across Varying Distances}
+    \label{tab:distance_performance}
+    
+    \begin{tabular}{cccc}
+        \toprule
+        \textbf{Distance} & \textbf{Discrete Button} & \textbf{Continuous Telemetry} & \textbf{ML Prediction} \\
+        \textbf{(Feet)} & \textbf{Packet Loss (out of 50)} & \textbf{Rate (Hz)} & \textbf{Accuracy (\%)} \\
+        \midrule
+        1  & 0  & $\sim$75 & 100 \\
+        2  & 0  & $\sim$75 & 100 \\
+        5  & 0  & $\sim$75 & 100 \\
+        10 & 0  & $\sim$75 & 100 \\
+        20 & 0  & $\sim$75 & 100 \\
+        40 & 0  & $\sim$75 & 100 \\
+        60 & 0  & $\sim$75 & 100 \\
+        70 & 0  & $\sim$75 & 100 \\
+        80 & 0  & $\sim$50 & 100 \\
+        90 & 15 & $\sim$5  & 20  \\
+        \bottomrule
+    \end{tabular}
+    
+    \vspace{0.2cm}
+\end{table*}
 
 We collected 25 samples of air-writing for every letter. For training, we used 80\% of this data, and the other 20\% was used for testing.
 
@@ -50,21 +79,26 @@ The third test was running the full model inference pipeline for the same letter
 
 \subsection*{Implementation/Experimentation}
 % Describe your experiments and your results. Discuss your results.
-Individually, the two models were each about 90\% accurate, but when combine they reached 93-96\% on the test data. The reason for the range of accuracy, is because each time the MLP model was trained, it gave a different accuracy. TODO: what model accuracy did we end up saving in the .pkl?
+Individually, the two models were each about 90\% accurate, but when combine they reached 93-97\% on the test data. The reason for the range of accuracy, is because each time the MLP model was trained, it gave a different accuracy. TODO: what model accuracy did we end up saving in the .pkl?
 
 The accuracy test on real world live data was 93.08\% accurate. In~\cref{fig:confusion_matrix} we show each letters true label and the model's prediction on the X axis from this live data test. We note here that the letter with the worst performance is "A". Oddly enough, it was confused here with "C" the most. 
-
-TODO: Josh, explain results of the distance tests we did. packet number test, A button test, air-writing test.  
+ 
+To evaluate the maximum effective range of the system, we tested packet reception and prediction accuracy at varying distances. First, we tested the reliability of a discrete button press signal using a custom script to count detected events. We pressed the 'A' button 50 times at distances ranging from 1 to 90 feet. The system recorded zero packet loss up to 80 feet; at 90 feet, 15 out of 50 button presses were lost. Next, we evaluated continuous accelerometer telemetry to compare the received packet rate against the Wii remote’s 100 Hz transmission rate. Because the evdev subsystem filters non-unique accelerometer data, the remote was continuously shaken to ensure a constant stream of unique spatial events. We recorded the number of packets received during the duration of an 'A' button hold. Due to the Time-Division Multiplexing (TDM) collision on the Raspberry Pi’s shared Wi-Fi and Bluetooth antenna, our maximum receivable baseline was $\sim$75 Hz. Testing at the same distance intervals, we maintained this $\sim$75 Hz baseline up to 70 feet. At 80 feet, throughput fell to $\sim$50 Hz, and degraded to as low as 5 Hz at 90 feet. Finally, we tested the maximum distance for accurate ML inference. Using the letter 'L' (which achieved 100\% accuracy in our 2-foot baseline tests), we performed 5 gesture writes at each distance. The model successfully maintained 100\% prediction accuracy up to 80 feet, before sharply declining to 20\% accuracy at 90 feet.  
 
 
 \begin{figure}[htb]
+    \centering 
     \includegraphics[width=\columnwidth]{../confusion_matrix.png}
     \caption{A confusion matrix showing the predicted labels vs the expected label for each letter}
     \label{fig:confusion_matrix}
 \end{figure}
 \subsection*{Conclusion}
 % Summarize your work and your results. Indicated any future directions.
-In this project, we implement a highly accurate air-writing ML model. We 
+In this project, we engineered an accurate machine learning pipeline to translate physical gestures into air-written text using a Nintendo Wii remote and a Raspberry Pi Zero 2W. By abstracting the Bluetooth payload to the Linux evdev subsystem of the hid-wiimote driver, we were able to get data to the Raspberry Pi while still managing compute resources for the machine learning model. Our hybrid RF and MLP model was able to get a 93.08\% accuracy rate on live data and our spatial testing proved the system's high resilience, demonstrating that the ML architecture can successfully interpolate telemetry and maintain 100\% prediction accuracy at distances up to 80 feet.
+
+The current state of the project presents a fun proof of concept, but we would like to expand capabilities across hardware, software and security. At the hardware level, we want to eliminate the Time-Division Multiplexing (TDM) bottleneck caused by the Pi's shared antenna by adding a dedicated antenna to receive and transmit Bluetooth. This will also allow the system to run without relying on a WiFi SSH session. 
+Regarding security and bidirectional communication, future work will involve developing a lightweight, application-layer encryption handshake. Securing this line of communication will allow us to safely reintroduce bidirectional haptic and audio output to the Wii remote. Future work would also include getting the audio to work on the Wii remote speakers. 
+Lastly, we want to improve the machine learning models so that the letter inference is not user dependent. This will likely involve collecting further training data. We also want to implement Natural Language Processing (NLP) autocomplete and spellcheck layer above the character prediction model, allowing the system to contextually correct isolated algorithmic misclassifications (such as the confusion between "A" and "C") in real time.
 
 % List all the references you have used for this work.
 \subsection*{References}
