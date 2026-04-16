@@ -1,18 +1,28 @@
 \begin{thebibliography}{1}
 
 \bibitem{leeHacking}
-J.~C. Lee, ``Hacking the nintendo wii remote,'' {\em IEEE Pervasive Computing}, vol.~7, no.~3, pp.~39--45, 2008.
+J.~C. Lee, ``Hacking the nintendo wii remote,'' {\em IEEE Pervasive Computing},
+  vol.~7, no.~3, pp.~39--45, 2008.
 
 \bibitem{Khan2013WiiActivity}
-A.~M. Khan, ``Recognizing physical activities using wii remote,'' {\em International Journal of Information and Education Technology}, vol.~3, no.~1, pp.~60--62, 2013.
+A.~M. Khan, ``Recognizing physical activities using wii remote,'' {\em
+  International Journal of Information and Education Technology}, vol.~3,
+  no.~1, pp.~60--62, 2013.
 
 \bibitem{SynnottWiiPD}
-J.~Synnott, L.~Chen, C.~D. Nugent, and G.~Moore, ``Wiipd—objective home assessment of parkinson's disease using the nintendo wii remote,'' {\em IEEE Transactions on Information Technology in Biomedicine}, vol.~16, no.~6, pp.~1304--1312, 2012.
+J.~Synnott, L.~Chen, C.~D. Nugent, and G.~Moore, ``Wiipd—objective home
+  assessment of parkinson's disease using the nintendo wii remote,'' {\em IEEE
+  Transactions on Information Technology in Biomedicine}, vol.~16, no.~6,
+  pp.~1304--1312, 2012.
 
 \bibitem{ChenAirWriting}
-M.~Chen, G.~AlRegib, and B.-H. Juang, ``Air-writing recognition—part i: Modeling and recognition of characters, words, and connecting motions,'' {\em IEEE Transactions on Human-Machine Systems}, vol.~46, no.~3, pp.~403--413, 2016.
+M.~Chen, G.~AlRegib, and B.-H. Juang, ``Air-writing recognition—part i:
+  Modeling and recognition of characters, words, and connecting motions,'' {\em
+  IEEE Transactions on Human-Machine Systems}, vol.~46, no.~3, pp.~403--413,
+  2016.
 
 \bibitem{YanayAirwriting}
-T.~Yanay and E.~Shmueli, ``Air-writing recognition using smart-bands,'' {\em Pervasive and Mobile Computing}, vol.~66, p.~101183, 2020.
+T.~Yanay and E.~Shmueli, ``Air-writing recognition using smart-bands,'' {\em
+  Pervasive and Mobile Computing}, vol.~66, p.~101183, 2020.
 
 \end{thebibliography}
