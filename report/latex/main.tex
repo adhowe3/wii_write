@@ -3,7 +3,7 @@
 \usepackage{authblk, cleveref}
 \usepackage{booktabs}
 \usepackage{float}
-\usepackage{stfloats}
+% \usepackage{stfloats}
 \bibliographystyle{ieeetr}
 
 
@@ -17,74 +17,45 @@ Wii Write}
 
 \subsection*{Introduction}
 % Motivate and introduce the problem you are solving. Very briefly summarize your methodology, your experiments, and your important results.
-The Nintendo Wii remote has been used in research as a cheap and common alternative to other accelerometers and inertial sensing, as discussed in~\cite{leeHacking}. The issue we are addressing is communication from one user to another via the Wii remote. This communication system could be used by people without fine motor skills for typing, or even the ability to talk.
+The issue we are addressing is communication from one user to another via the Wii remote. This communication system could be used by people who lack the fine motor skills to type, or even the ability to talk. This project also serves as an interesting way to learn about Bluetooth and machine learning (ML).
 
-We implement a Bluetooth connection between a Raspberry-Pi to a Wiimote. We design an ML model to detect letters drawn in the air which achieved 93\% accuracy on user dependent data. We experiment on the accuracy of the model and the Bluetooth packet loss at several distances. We find that the model is accurate enough to detect letters correctly and the Wiimote is capable of sending data up to 80ft without significant packet loss.
+We implement a Bluetooth connection between a Raspberry-Pi to a Wiimote. We design an ML model to detect letters drawn in the air which achieved 97\% accuracy on user dependent data. We experiment on the accuracy of the model and the Bluetooth packet loss at several distances. We find that the model is accurate enough to detect letters correctly and the Wiimote is capable of sending data up to 80ft without significant packet loss. Our code can be found at: \texttt{https://github.com/adhowe3/wii\_write}.
 
 \subsection*{Related Work}
 % Summarize the existing work related to your problem.
 In previous work, the Wiimote has been reverse engineered and used in virtual reality~\cite{leeHacking} , physical activity tracking~\cite{Khan2013WiiActivity}, and even used to evaluate Parkinson's patients~\cite{SynnottWiiPD}. These works focused on using the Wiimote as a cheap alternative to other motion tracking devices.
 
-There has been quite a bit of research in the area of air-writing. In~\cite{ChenAirWriting} they achieved a word error rate of 0.8\% with air-writing. The work in~\cite{YanayAirwriting} achieved 89.2\% accuracy on a letter prediction model that was user dependent, meaning the model was trained and tested on data from the same user.
+There is a significant amount of research about air-writing letter detection. In~\cite{ChenAirWriting} they achieved a word error rate of 0.8\% with air-writing. The work in~\cite{YanayAirwriting} achieved 89.2\% accuracy on a letter prediction model that was user dependent, meaning the model was trained and tested on data from the same user.
 
 
 \subsection*{Methodology}
 % Describe your solution and any other methods you have used to solve your problem.
-The Wii remote is connected to the Raspberry Pi over Bluetooth through BlueZ, a native Linux Bluetooth stack. This connection manages the legacy Bluetooth signal from the Wii remote and opens a Logical Link Control and Adaptation Protocol (L2CAP) transport pipe. Our python script for reading the accelerometer data from the Wii remote could interface directly to this stream using a raw Bluetooth socket, but that would bog down the Raspberry Pi's CPU since it would be getting 100 accelerometer readings per second and we would have to manually decode the hexadecimal payloads from the Wii remote. To optimize the stream of data to allow enough resources for the machine learning model to run on the Raspberry Pi, we abstract the handling of the Bluetooth packets to the Linux kernel with the hid-wiimote kernel driver. This translates the Nintendo-specific hexadecimal payloads into standard Linux inputs. Once the payloads are in a format that Linux understands, the evdev (event device) subsystem filters the stream of Bluetooth data and only registers unique events that out python script uses to collect that data for processing. 
+The Wii remote is connected to the Raspberry Pi over Bluetooth through BlueZ, a native Linux Bluetooth stack. This connection manages the legacy Bluetooth signal from the Wii remote and opens a Logical Link Control and Adaptation Protocol (L2CAP) transport pipe. 
+% Our python script for reading the accelerometer data from the Wiimote could interface directly to this stream using a raw Bluetooth socket, but that would bog down the Raspberry Pi's CPU. The Pi would receive 100 accelerometer readings per second, and these would need to be manually decoded from the hexadecimal Wiimote payloads. Instead, to optimize the stream of data and allow enough resources for the ML model on to run the Pi, 
+We abstract the handling of the Bluetooth packets to the Linux kernel with the hid-wiimote kernel driver. This translates the Nintendo-specific hexadecimal payloads into standard Linux inputs. Once the payloads are in a format that Linux understands, the evdev (event device) subsystem filters the stream of Bluetooth data and only registers unique events that out python script uses to collect that data for processing. 
 
 We used a Raspberry Pi Zero2W to connect to the Wiimote over Bluetooth. The Rasberry Pi receives raw accelerometer and button data from the Wiimote, and from this data predicts the drawn letter. To draw the letters, we hold the "A" button on the Wiimote and draw a stroke of the letter. Some letters like "H" have three strokes, while a letter like "S" only has one stroke. All leters we draw are upper-case. Accelerometer data is only sent while the "A" button is being held. Once the user is done writing a letter, the D-pad is pressed to indicate the end of letter.
-
-\begin{table*}[b] % The asterisk makes it span both columns. [t] puts it at the top of a page.
-    \centering
-    \caption{System Performance Across Varying Distances}
-    \label{tab:distance_performance}
-    
-    \begin{tabular}{cccc}
-        \toprule
-        \textbf{Distance} & \textbf{Discrete Button} & \textbf{Continuous Telemetry} & \textbf{ML Prediction} \\
-        \textbf{(Feet)} & \textbf{Packet Loss (out of 50)} & \textbf{Rate (Hz)} & \textbf{Accuracy (\%)} \\
-        \midrule
-        1  & 0  & $\sim$75 & 100 \\
-        2  & 0  & $\sim$75 & 100 \\
-        5  & 0  & $\sim$75 & 100 \\
-        10 & 0  & $\sim$75 & 100 \\
-        20 & 0  & $\sim$75 & 100 \\
-        40 & 0  & $\sim$75 & 100 \\
-        60 & 0  & $\sim$75 & 100 \\
-        70 & 0  & $\sim$75 & 100 \\
-        80 & 0  & $\sim$50 & 100 \\
-        90 & 15 & $\sim$5  & 20  \\
-        \bottomrule
-    \end{tabular}
-    
-    \vspace{0.2cm}
-\end{table*}
 
 We collected 25 samples of air-writing for every letter. For training, we used 80\% of this data, and the other 20\% was used for testing.
 
 We tried several model architectures, and decided on a hybrid model that takes votes from two individual models. 
 
-The first model is a random forest (RF) classifier, which takes extracted features from the accelerometer data to make a prediction. These features are: number of strokes, length of data, mean, standard deviation, minimum, maximum, for X, Y and Z data. The model builds 100 decision trees and combines their predictions for its output.
+The first model is a random forest (RF) classifier, which takes extracted features from the accelerometer data to make a prediction. These features are: number of strokes, length of data, mean, standard deviation, minimum, maximum, for X, Y and Z data. The RF model uses 100 decision trees to predict its output.
 
-The second model is a multi-layer perceptron (MLP) that takes in the raw X, Y, Z data passes it through four fully connected hidden layers with sizes 256 $\rightarrow$ 128 $\rightarrow$ 64 $\rightarrow$ 32. Each layer uses ReLU activation and is trained using Adam optimizer with a learning rate of $1 \times 10^{-4}$. Since the MLP model input needs to have a standard size, we up-sample or down-sample to 100 samples for each axis input. 
+The second model is a multi-layer perceptron (MLP) that takes in the raw X, Y, Z accelerometer data and passes it through four fully connected hidden layers with sizes 256 $\rightarrow$ 128 $\rightarrow$ 64 $\rightarrow$ 32. Each layer uses ReLU activation and is trained using Adam optimizer with a learning rate of $1 \times 10^{-4}$. Since the MLP model input needs to have a fixed size, we up-sample or down-sample to 100 samples for each axis input. 
 
-Once the hybrid model was trained and at an acceptable accuracy, we implemented a full flow that allowed live data to be acquired, inference executed, and a letter predicted. We tested accuracy on live data, by air-writing each letter 10 times and evaluating against the model predictions.
+From these two model votes, we created a hybrid model. We trained it to an acceptable accuracy, and implemented a full flow that allowed live data to be acquired, inference executed, and a letter predicted. We tested the hybrid model's accuracy on live data, by air-writing each letter 10 times and evaluating against the model predictions.
 
-Beyond building, training and testing a custom ML model, we also tested the range of the Wiimote with the Raspberry Pi setup. We tested the Wiimote at several distances in three related experiments. The first was testing the systems range while sending as many Bluetooth packets as we could in short period of time. We did this by holding the "A" button and shaking the Wiimote. This should send [TODO: X] number of packets per second and allowed us to compare with the actual number of packets received.
+Beyond building, training and testing a custom ML model, we also tested the range of the Wiimote with the Raspberry Pi setup. We tested the Wiimote at several distances in three related experiments. These tests are discussed at the bottom of the next section.
 
-The second test was counting individual "A" button presses on the Wiimote, and seeing how many are missed by the Raspberry Pi at several distances.
-
-The third test was running the full model inference pipeline for the same letter at different distances and observing how the accuracy changes. 
+In this project, we also experimented with two methods of communicating back to the Wiimote. The first method was using the Wiimote's built in speaker. Because the Wiimote uses a very unique audio discriptor, sending intelligible audio clips was difficult. In the second method we used the vibration and LED on the Wiimote to denote a dot or a dash for morse code communication.
 
 
 \subsection*{Implementation/Experimentation}
 % Describe your experiments and your results. Discuss your results.
-Individually, the two models were each about 90\% accurate, but when combine they reached 93-97\% on the test data. The reason for the range of accuracy, is because each time the MLP model was trained, it gave a different accuracy. TODO: what model accuracy did we end up saving in the .pkl?
+Individually, the two models were each about 90\% accurate, but when combine they reached 97\% on the test data. This shows the power of synergy and hybrid models.
 
-The accuracy test on real world live data was 93.08\% accurate. In~\cref{fig:confusion_matrix} we show each letters true label and the model's prediction on the X axis from this live data test. We note here that the letter with the worst performance is "A". Oddly enough, it was confused here with "C" the most. 
- 
-To evaluate the maximum effective range of the system, we tested packet reception and prediction accuracy at varying distances. First, we tested the reliability of a discrete button press signal using a custom script to count detected events. We pressed the 'A' button 50 times at distances ranging from 1 to 90 feet. The system recorded zero packet loss up to 80 feet; at 90 feet, 15 out of 50 button presses were lost. Next, we evaluated continuous accelerometer telemetry to compare the received packet rate against the Wii remote’s 100 Hz transmission rate. Because the evdev subsystem filters non-unique accelerometer data, the remote was continuously shaken to ensure a constant stream of unique spatial events. We recorded the number of packets received during the duration of an 'A' button hold. Due to the Time-Division Multiplexing (TDM) collision on the Raspberry Pi’s shared Wi-Fi and Bluetooth antenna, our maximum receivable baseline was $\sim$75 Hz. Testing at the same distance intervals, we maintained this $\sim$75 Hz baseline up to 70 feet. At 80 feet, throughput fell to $\sim$50 Hz, and degraded to as low as 5 Hz at 90 feet. Finally, we tested the maximum distance for accurate ML inference. Using the letter 'L' (which achieved 100\% accuracy in our 2-foot baseline tests), we performed 5 gesture writes at each distance. The model successfully maintained 100\% prediction accuracy up to 80 feet, before sharply declining to 20\% accuracy at 90 feet.  
-
+The accuracy test on real world live data was 93.08\% accurate. In~\cref{fig:confusion_matrix} we show each letters true label and the model's prediction on the X axis from this live data test. We note here that the letter with the worst performance is "A". Oddly enough, in this test it was confused with "C" the most. In other tests not documented, we saw "A" be confused more with "H" and "I", which make more sense given that they all have three straight strokes.
 
 \begin{figure}[htb]
     \centering 
@@ -92,6 +63,15 @@ To evaluate the maximum effective range of the system, we tested packet receptio
     \caption{A confusion matrix showing the predicted labels vs the expected label for each letter}
     \label{fig:confusion_matrix}
 \end{figure}
+
+To evaluate the maximum effective range of the system, we tested packet reception and prediction accuracy at varying distances. 
+
+First, we tested the reliability of a discrete button press signal using a custom script to count detected events. We pressed the 'A' button 50 times at distances ranging from 1 to 90 feet, at 10 foot increments. zero button presses were dropped up to 80 feet away; at 90 feet, 15 out of 50 button presses were lost.
+
+Second, we evaluated continuous accelerometer telemetry to compare the received packet rate against the Wiimote’s 100 Hz transmission rate. Because the evdev subsystem filters non-unique accelerometer data, the remote was continuously shaken to ensure a constant stream of unique spatial events. We recorded the number of packets received during the duration of an 'A' button hold. Due to the Time-Division Multiplexing (TDM) collision on the Raspberry Pi’s shared Wi-Fi and Bluetooth antenna, our maximum receivable baseline was $\sim$75 Hz. Testing at the same distance intervals, we maintained this $\sim$75 Hz baseline up to 70 feet. At 80 feet, throughput fell to $\sim$50 Hz, and degraded to as low as 5 Hz at 90 feet. 
+
+Third, we tested the accuracy of the ML model while performing live inference at several distances. Using the letter 'L' (which achieved 100\% accuracy in our 2-foot baseline tests), we performed 5 gesture writes at each distance. The model successfully maintained 100\% prediction accuracy up to 80 feet, before sharply declining to 20\% accuracy at 90 feet.  
+
 \subsection*{Conclusion}
 % Summarize your work and your results. Indicated any future directions.
 In this project, we engineered an accurate machine learning pipeline to translate physical gestures into air-written text using a Nintendo Wii remote and a Raspberry Pi Zero 2W. By abstracting the Bluetooth payload to the Linux evdev subsystem of the hid-wiimote driver, we were able to get data to the Raspberry Pi while still managing compute resources for the machine learning model. Our hybrid RF and MLP model was able to get a 93.08\% accuracy rate on live data and our spatial testing proved the system's high resilience, demonstrating that the ML architecture can successfully interpolate telemetry and maintain 100\% prediction accuracy at distances up to 80 feet.
@@ -105,5 +85,30 @@ Lastly, we want to improve the machine learning models so that the letter infere
 \renewcommand{\refname}{\vspace{-1.5em}}    % had to add this so bib does not add extra space or section header
 \bibliography{references}
 
+% \begin{table*}[b] % The asterisk makes it span both columns
+%     \centering
+%     \caption{System Performance Across Varying Distances}
+%     \label{tab:distance_performance}
+    
+%     \begin{tabular}{cccc}
+%         \toprule
+%         \textbf{Distance} & \textbf{Discrete Button} & \textbf{Continuous Telemetry} & \textbf{ML Prediction} \\
+%         \textbf{(Feet)} & \textbf{Packet Loss (out of 50)} & \textbf{Rate (Hz) (Ideal=75hz)} & \textbf{Accuracy (\%)} \\
+%         \midrule
+%         1  & 0  & $\sim$75 & 100 \\
+%         2  & 0  & $\sim$75 & 100 \\
+%         5  & 0  & $\sim$75 & 100 \\
+%         10 & 0  & $\sim$75 & 100 \\
+%         20 & 0  & $\sim$75 & 100 \\
+%         40 & 0  & $\sim$75 & 100 \\
+%         60 & 0  & $\sim$75 & 100 \\
+%         70 & 0  & $\sim$75 & 100 \\
+%         80 & 0  & $\sim$50 & 100 \\
+%         90 & 15 & $\sim$5  & 20  \\
+%         \bottomrule
+%     \end{tabular}
+    
+%     \vspace{0.2cm}
+% \end{table*}
 
 \end{document}
